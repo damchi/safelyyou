@@ -67,3 +67,21 @@ func (r *DeviceRepository) Count() int {
 	defer r.mu.RUnlock()
 	return len(r.devices)
 }
+
+// WithDevice runs a function while holding a write lock on the device.
+// WithDevice finds (or creates) a device by id and executes fn while holding
+// a write lock on the underlying map. This lets the service perform
+// read-modify-write updates atomically without worrying about concurrency.
+
+func (r *DeviceRepository) WithDevice(id string, fn func(d *domain.DeviceStats) error) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	d, ok := r.devices[id]
+	if !ok {
+		// Auto-create device if it doesn't exist yet.
+		d = domain.NewDeviceStats(id)
+		r.devices[id] = d
+	}
+	return fn(d)
+}

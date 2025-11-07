@@ -31,3 +31,9 @@ go.work.sum
 # .idea/
 # .vscode/
 /go.sum
+/.idea/modules.xml
+/.idea/safelyyou.iml
+/.idea/vcs.xml
+/docs/docs.go
+/docs/swagger.json
+/docs/swagger.yaml
