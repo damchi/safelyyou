@@ -1,7 +1,6 @@
 package services
 
 import (
-	coreerrors "safelyyou/internal/core/errors"
 	"testing"
 	"time"
 
@@ -19,6 +18,7 @@ func newFakeDeviceRepo() *fakeDeviceRepo {
 	}
 }
 
+// WithDevice is the only method DeviceServiceImpl cares about right now.
 func (r *fakeDeviceRepo) WithDevice(id string, fn func(d *domain.DeviceStats) error) error {
 	d, ok := r.devices[id]
 	if !ok {
@@ -28,13 +28,8 @@ func (r *fakeDeviceRepo) WithDevice(id string, fn func(d *domain.DeviceStats) er
 	return fn(d)
 }
 
-func (r *fakeDeviceRepo) GetSnapshot(id string) (*domain.DeviceStats, error) {
-	d, ok := r.devices[id]
-	if !ok {
-		return nil, coreerrors.ErrDeviceNotFound
-	}
-	copy := *d
-	return &copy, nil
+func (r *fakeDeviceRepo) snapshot(id string) *domain.DeviceStats {
+	return r.devices[id]
 }
 
 // --- Tests for RecordHeartbeat -----------------------------------------------
@@ -50,9 +45,9 @@ func TestRecordHeartbeat_FirstHeartbeatInitializesStats(t *testing.T) {
 		t.Fatalf("RecordHeartbeat returned error: %v", err)
 	}
 
-	got, err := repo.GetSnapshot(id)
-	if err != nil {
-		t.Fatalf("GetSnapshot returned error: %v", err)
+	got := repo.snapshot(id)
+	if got == nil {
+		t.Fatalf("expected device %q to exist in repo", id)
 	}
 
 	if got.ID != id {
@@ -78,16 +73,15 @@ func TestRecordHeartbeat_MultipleHeartbeatsUpdatesFirstAndLast(t *testing.T) {
 	t2 := t1.Add(5 * time.Minute)
 	t3 := t2.Add(10 * time.Minute)
 
-	// three heartbeats in order
 	_ = svc.RecordHeartbeat(id, t1)
 	_ = svc.RecordHeartbeat(id, t2)
 	if err := svc.RecordHeartbeat(id, t3); err != nil {
 		t.Fatalf("RecordHeartbeat returned error: %v", err)
 	}
 
-	got, err := repo.GetSnapshot(id)
-	if err != nil {
-		t.Fatalf("GetSnapshot returned error: %v", err)
+	got := repo.snapshot(id)
+	if got == nil {
+		t.Fatalf("expected device %q to exist in repo", id)
 	}
 
 	if got.HeartbeatCount != 3 {
@@ -101,7 +95,6 @@ func TestRecordHeartbeat_MultipleHeartbeatsUpdatesFirstAndLast(t *testing.T) {
 	}
 }
 
-// corner case: heartbeat arrives "out of order" earlier than existing first
 func TestRecordHeartbeat_OutOfOrderEarlierUpdatesFirstKeepsLast(t *testing.T) {
 	repo := newFakeDeviceRepo()
 	svc := NewDeviceService(repo)
@@ -114,14 +107,13 @@ func TestRecordHeartbeat_OutOfOrderEarlierUpdatesFirstKeepsLast(t *testing.T) {
 	_ = svc.RecordHeartbeat(id, tMiddle)
 	_ = svc.RecordHeartbeat(id, tLate)
 
-	// now an earlier heartbeat arrives
 	if err := svc.RecordHeartbeat(id, tEarly); err != nil {
 		t.Fatalf("RecordHeartbeat returned error: %v", err)
 	}
 
-	got, err := repo.GetSnapshot(id)
-	if err != nil {
-		t.Fatalf("GetSnapshot returned error: %v", err)
+	got := repo.snapshot(id)
+	if got == nil {
+		t.Fatalf("expected device %q to exist in repo", id)
 	}
 
 	if got.HeartbeatCount != 3 {
