@@ -2,7 +2,13 @@
 
 .PHONY: install run unit-test integration-test tests
 
-## install: install everything needed to run the project
+# Load variables from .env if it exists
+ifneq (,$(wildcard .env))
+  include .env
+  export
+endif
+
+
 ## install: install everything needed to run the project
 install:
 	@echo "Fetching Swagger dependencies..."
@@ -20,12 +26,18 @@ install:
 run:
 	go run ./cmd/app
 
+#create the doc
 doc:
 	@echo "Generating Swagger API documentation..."
 	@swag init -g cmd/app/main.go -d . -o docs
 	@echo "Documentation generated in ./docs"
 
-
+#run all the tests
 test:
 	@echo "Running tests..."
 	go test ./... -v
+
+#run the simulate device (
+simulate:
+	@echo "Running simulate device on port $(PORT)..."
+	$(DEVICE_SIM_BIN) --port $(PORT)

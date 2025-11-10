@@ -17,6 +17,8 @@ func RegisterRoutes(r *gin.Engine, deviceSvc ports.DeviceService) {
 		devicesGroup := api.Group("/devices")
 		{
 			devicesGroup.POST("/:device_id/heartbeat", h.PostHeartbeat)
+			devicesGroup.POST("/:device_id/stats", h.PostStats)
+			devicesGroup.GET("/:device_id/stats", h.GetStats)
 		}
 	}
 	r.GET("/docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))

@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"os"
 	"safelyyou/internal/core/domain"
+	coreerrors "safelyyou/internal/core/errors"
 	"sync"
 )
 
@@ -72,7 +73,6 @@ func (r *DeviceRepository) Count() int {
 // WithDevice finds (or creates) a device by id and executes fn while holding
 // a write lock on the underlying map. This lets the service perform
 // read-modify-write updates atomically without worrying about concurrency.
-
 func (r *DeviceRepository) WithDevice(id string, fn func(d *domain.DeviceStats) error) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -84,4 +84,24 @@ func (r *DeviceRepository) WithDevice(id string, fn func(d *domain.DeviceStats) 
 		r.devices[id] = d
 	}
 	return fn(d)
+}
+
+func (r *DeviceRepository) Exists(id string) bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	_, ok := r.devices[id]
+	return ok
+}
+
+func (r *DeviceRepository) GetSnapshot(id string) (*domain.DeviceStats, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	deviceStats, ok := r.devices[id]
+	if !ok {
+		return nil, coreerrors.ErrDeviceNotFound
+	}
+	deviceCopy := *deviceStats
+	return &deviceCopy, nil
 }
